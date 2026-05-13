@@ -116,6 +116,22 @@ def cmd_goal_complete(args: argparse.Namespace, store: YamlContextStore) -> int:
     return 0
 
 
+def cmd_decision_add(args: argparse.Namespace, store: YamlContextStore) -> int:
+    project_id = resolve_project_id(args.project, store)
+    decision = store.record_decision(
+        project_id,
+        args.title,
+        args.rationale,
+        args.alternative or [],
+    )
+    _emit(
+        args,
+        decision.model_dump(mode="json"),
+        f"Recorded decision {decision.id}: {decision.title}",
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="agentos",
@@ -148,6 +164,19 @@ def build_parser() -> argparse.ArgumentParser:
     goal_complete_p = goal_sub.add_parser("complete", help="Mark a goal complete.")
     goal_complete_p.add_argument("goal_id")
     goal_complete_p.set_defaults(handler=cmd_goal_complete)
+
+    decision_p = sub.add_parser("decision", help="Manage decisions.")
+    decision_sub = decision_p.add_subparsers(dest="decision_cmd", required=True)
+
+    decision_add_p = decision_sub.add_parser("add", help="Append a decision.")
+    decision_add_p.add_argument("title")
+    decision_add_p.add_argument("--rationale", required=True)
+    decision_add_p.add_argument(
+        "--alternative",
+        action="append",
+        help="An alternative considered (may be repeated).",
+    )
+    decision_add_p.set_defaults(handler=cmd_decision_add)
 
     return parser
 
