@@ -102,6 +102,20 @@ def cmd_project_init(args: argparse.Namespace, store: YamlContextStore) -> int:
     return 0
 
 
+def cmd_goal_add(args: argparse.Namespace, store: YamlContextStore) -> int:
+    project_id = resolve_project_id(args.project, store)
+    goal = store.add_goal(project_id, args.title, args.description)
+    _emit(args, goal.model_dump(mode="json"), f"Added goal {goal.id}: {goal.title}")
+    return 0
+
+
+def cmd_goal_complete(args: argparse.Namespace, store: YamlContextStore) -> int:
+    project_id = resolve_project_id(args.project, store)
+    goal = store.complete_goal(project_id, args.goal_id)
+    _emit(args, goal.model_dump(mode="json"), f"Completed goal {goal.id}.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="agentos",
@@ -122,6 +136,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     show_p = project_sub.add_parser("show", help="Print project state.")
     show_p.set_defaults(handler=cmd_project_show)
+
+    goal_p = sub.add_parser("goal", help="Manage goals.")
+    goal_sub = goal_p.add_subparsers(dest="goal_cmd", required=True)
+
+    goal_add_p = goal_sub.add_parser("add", help="Add a goal.")
+    goal_add_p.add_argument("title")
+    goal_add_p.add_argument("--description", default=None)
+    goal_add_p.set_defaults(handler=cmd_goal_add)
+
+    goal_complete_p = goal_sub.add_parser("complete", help="Mark a goal complete.")
+    goal_complete_p.add_argument("goal_id")
+    goal_complete_p.set_defaults(handler=cmd_goal_complete)
 
     return parser
 
