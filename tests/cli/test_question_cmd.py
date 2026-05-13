@@ -43,3 +43,13 @@ def test_question_resolve_unknown_id_errors(home, capsys):
     assert code == 1
     err = capsys.readouterr().err
     assert "not found" in err.lower()
+
+
+def test_question_resolve_with_nonexistent_project_errors(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("AGENTOS_HOME", str(tmp_path))
+    # Create one project so we can target a different, nonexistent slug with --project.
+    main(["project", "init", "Alpha", "--description", "x"])
+    code = main(["--project", "ghost", "question", "resolve", "qid", "answer"])
+    assert code == 1
+    err = capsys.readouterr().err
+    assert "not found" in err.lower()

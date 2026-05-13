@@ -115,6 +115,13 @@ def cmd_goal_add(args: argparse.Namespace, store: YamlContextStore) -> int:
 
 def cmd_goal_complete(args: argparse.Namespace, store: YamlContextStore) -> int:
     project_id = resolve_project_id(args.project, store)
+    project = store.get_project(project_id)
+    if project is None:
+        raise NotFoundError(f"project '{project_id}' not found")
+    if not any(g.id == args.goal_id for g in project.goals):
+        raise NotFoundError(
+            f"goal '{args.goal_id}' not found in project '{project_id}'"
+        )
     goal = store.complete_goal(project_id, args.goal_id)
     _emit(args, goal.model_dump(mode="json"), f"Completed goal {goal.id}.")
     return 0
@@ -161,6 +168,8 @@ def cmd_question_add(args: argparse.Namespace, store: YamlContextStore) -> int:
 def cmd_question_resolve(args: argparse.Namespace, store: YamlContextStore) -> int:
     project_id = resolve_project_id(args.project, store)
     project = store.get_project(project_id)
+    if project is None:
+        raise NotFoundError(f"project '{project_id}' not found")
     question = next(
         (q for q in project.open_questions if q.id == args.question_id),
         None,

@@ -40,3 +40,10 @@ def test_goal_complete_marks_completed(home, capsys):
     project = json.loads(capsys.readouterr().out)
     goal = next(g for g in project["goals"] if g["id"] == goal_id)
     assert goal["status"] == "completed"
+
+
+def test_goal_complete_unknown_id_errors(home, capsys):
+    code = main(["goal", "complete", "bogus"])
+    assert code == 1
+    err = capsys.readouterr().err
+    assert "not found" in err.lower()
