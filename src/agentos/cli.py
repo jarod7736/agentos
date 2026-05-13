@@ -132,6 +132,17 @@ def cmd_decision_add(args: argparse.Namespace, store: YamlContextStore) -> int:
     return 0
 
 
+def cmd_focus_set(args: argparse.Namespace, store: YamlContextStore) -> int:
+    project_id = resolve_project_id(args.project, store)
+    project = store.set_focus(project_id, args.text)
+    _emit(
+        args,
+        project.model_dump(mode="json"),
+        f"Focus updated: {project.current_focus}",
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="agentos",
@@ -177,6 +188,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="An alternative considered (may be repeated).",
     )
     decision_add_p.set_defaults(handler=cmd_decision_add)
+
+    focus_p = sub.add_parser("focus", help="Manage current focus.")
+    focus_sub = focus_p.add_subparsers(dest="focus_cmd", required=True)
+
+    focus_set_p = focus_sub.add_parser("set", help="Set current focus (free text).")
+    focus_set_p.add_argument("text")
+    focus_set_p.set_defaults(handler=cmd_focus_set)
 
     return parser
 
