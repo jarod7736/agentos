@@ -18,6 +18,30 @@ def resolve_home(flag: str | None) -> Path:
     return Path.home() / ".agentos"
 
 
+class ProjectResolutionError(Exception):
+    """Raised when the current project cannot be determined unambiguously."""
+
+
+def resolve_project_id(flag: str | None, store: YamlContextStore) -> str:
+    if flag:
+        return flag
+    env = os.environ.get("AGENTOS_PROJECT")
+    if env:
+        return env
+    projects = store.list_projects()
+    if len(projects) == 1:
+        return projects[0].id
+    if not projects:
+        raise ProjectResolutionError(
+            "No projects exist. Run `agentos project init <name>` first."
+        )
+    slugs = ", ".join(p.id for p in projects)
+    raise ProjectResolutionError(
+        f"Project is ambiguous (existing: {slugs}). "
+        "Pass --project <slug> or set AGENTOS_PROJECT."
+    )
+
+
 def _emit(args: argparse.Namespace, obj: dict, text: str) -> None:
     if args.json:
         print(json.dumps(obj))
@@ -61,7 +85,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
     home = resolve_home(args.home)
     store = YamlContextStore(base_dir=home)
-    return args.handler(args, store)
+    try:
+        return args.handler(args, store)
+    except ProjectResolutionError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
