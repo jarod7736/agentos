@@ -1,7 +1,18 @@
 """agentos command-line interface."""
 from __future__ import annotations
 import argparse
+import os
 import sys
+from pathlib import Path
+
+
+def resolve_home(flag: str | None) -> Path:
+    if flag:
+        return Path(flag)
+    env = os.environ.get("AGENTOS_HOME")
+    if env:
+        return Path(env)
+    return Path.home() / ".agentos"
 
 
 def build_parser() -> argparse.ArgumentParser:
