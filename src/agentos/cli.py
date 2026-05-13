@@ -23,6 +23,10 @@ class ProjectResolutionError(Exception):
     """Raised when the current project cannot be determined unambiguously."""
 
 
+class NotFoundError(Exception):
+    """Raised when a referenced resource (goal, question) does not exist."""
+
+
 def resolve_project_id(flag: str | None, store: YamlContextStore) -> str:
     if flag:
         return flag
@@ -143,6 +147,43 @@ def cmd_focus_set(args: argparse.Namespace, store: YamlContextStore) -> int:
     return 0
 
 
+def cmd_question_add(args: argparse.Namespace, store: YamlContextStore) -> int:
+    project_id = resolve_project_id(args.project, store)
+    question = store.add_open_question(project_id, args.text, args.option or [])
+    _emit(
+        args,
+        question.model_dump(mode="json"),
+        f"Added question {question.id}: {question.question}",
+    )
+    return 0
+
+
+def cmd_question_resolve(args: argparse.Namespace, store: YamlContextStore) -> int:
+    project_id = resolve_project_id(args.project, store)
+    project = store.get_project(project_id)
+    question = next(
+        (q for q in project.open_questions if q.id == args.question_id),
+        None,
+    )
+    if question is None:
+        raise NotFoundError(
+            f"question '{args.question_id}' not found in project '{project_id}'"
+        )
+    decision = store.record_decision(
+        project_id,
+        title=f"Answered: {question.question}",
+        rationale=args.answer,
+        alternatives=question.options,
+    )
+    store.resolve_question(project_id, question.id)
+    _emit(
+        args,
+        decision.model_dump(mode="json"),
+        f"Resolved question {question.id} as decision {decision.id}.",
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="agentos",
@@ -196,6 +237,26 @@ def build_parser() -> argparse.ArgumentParser:
     focus_set_p.add_argument("text")
     focus_set_p.set_defaults(handler=cmd_focus_set)
 
+    question_p = sub.add_parser("question", help="Manage open questions.")
+    question_sub = question_p.add_subparsers(dest="question_cmd", required=True)
+
+    question_add_p = question_sub.add_parser("add", help="Add an open question.")
+    question_add_p.add_argument("text")
+    question_add_p.add_argument(
+        "--option",
+        action="append",
+        help="A candidate answer (may be repeated).",
+    )
+    question_add_p.set_defaults(handler=cmd_question_add)
+
+    question_resolve_p = question_sub.add_parser(
+        "resolve",
+        help="Resolve an open question with an answer (also appended as a decision).",
+    )
+    question_resolve_p.add_argument("question_id")
+    question_resolve_p.add_argument("answer")
+    question_resolve_p.set_defaults(handler=cmd_question_resolve)
+
     return parser
 
 
@@ -207,6 +268,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return args.handler(args, store)
     except ProjectResolutionError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    except NotFoundError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
