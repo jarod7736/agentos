@@ -1,9 +1,12 @@
 """agentos command-line interface."""
 from __future__ import annotations
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
+
+from agentos.layer1.store import YamlContextStore
 
 
 def resolve_home(flag: str | None) -> Path:
@@ -15,32 +18,50 @@ def resolve_home(flag: str | None) -> Path:
     return Path.home() / ".agentos"
 
 
+def _emit(args: argparse.Namespace, obj: dict, text: str) -> None:
+    if args.json:
+        print(json.dumps(obj))
+    else:
+        print(text)
+
+
+def cmd_project_init(args: argparse.Namespace, store: YamlContextStore) -> int:
+    project = store.create_project(args.name, args.description)
+    _emit(
+        args,
+        project.model_dump(mode="json"),
+        f"Created project '{project.id}'.",
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="agentos",
         description="Persistent project context for humans and agents.",
     )
-    parser.add_argument(
-        "--home",
-        help="AgentOS state directory (overrides AGENTOS_HOME; default ~/.agentos).",
-    )
-    parser.add_argument(
-        "--project",
-        help="Project slug (overrides AGENTOS_PROJECT; defaults to the single existing project).",
-    )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Emit machine-readable JSON output.",
-    )
-    parser.add_subparsers(dest="command", required=True)
+    parser.add_argument("--home", help="AgentOS state directory (overrides AGENTOS_HOME).")
+    parser.add_argument("--project", help="Project slug (overrides AGENTOS_PROJECT).")
+    parser.add_argument("--json", action="store_true", help="Emit JSON output.")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    project_p = sub.add_parser("project", help="Manage projects.")
+    project_sub = project_p.add_subparsers(dest="project_cmd", required=True)
+
+    init_p = project_sub.add_parser("init", help="Create a new project.")
+    init_p.add_argument("name", help="Human-readable project name (slugified for the id).")
+    init_p.add_argument("--description", default="", help="Short description.")
+    init_p.set_defaults(handler=cmd_project_init)
+
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
-    parser.parse_args(argv if argv is not None else sys.argv[1:])
-    return 0
+    args = parser.parse_args(argv if argv is not None else sys.argv[1:])
+    home = resolve_home(args.home)
+    store = YamlContextStore(base_dir=home)
+    return args.handler(args, store)
 
 
 if __name__ == "__main__":
