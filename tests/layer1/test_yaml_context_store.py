@@ -110,3 +110,31 @@ def test_current_context_returns_none_when_no_active(store):
 
 def test_switch_project_returns_none_for_missing(store):
     assert store.switch_project("nonexistent") is None
+
+
+# --- set_focus / current_focus ---
+
+def test_set_focus_updates_project(store):
+    store.create_project("AgentOS", "desc")
+    p = store.set_focus("agentos", "Shipping the Layer 1 CLI")
+    assert p.current_focus == "Shipping the Layer 1 CLI"
+
+
+def test_set_focus_persists_across_reload(store):
+    store.create_project("AgentOS", "desc")
+    store.set_focus("agentos", "First focus")
+    reloaded = store.get_project("agentos")
+    assert reloaded.current_focus == "First focus"
+
+
+def test_set_focus_replaces_previous_value(store):
+    store.create_project("AgentOS", "desc")
+    store.set_focus("agentos", "First focus")
+    store.set_focus("agentos", "Second focus")
+    p = store.get_project("agentos")
+    assert p.current_focus == "Second focus"
+
+
+def test_new_project_has_no_focus(store):
+    p = store.create_project("AgentOS", "desc")
+    assert p.current_focus is None

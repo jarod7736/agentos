@@ -36,6 +36,7 @@ class Project(BaseModel):
     description: str
     status: Literal["active", "paused", "archived"] = "active"
     active_goal_id: str | None = None
+    current_focus: str | None = None
     goals: list[Goal] = []
     decisions: list[Decision] = []
     open_questions: list[OpenQuestion] = []
