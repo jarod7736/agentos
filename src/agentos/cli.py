@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 
+from agentos.layer1.model import Project
 from agentos.layer1.store import YamlContextStore
 
 
@@ -49,6 +50,48 @@ def _emit(args: argparse.Namespace, obj: dict, text: str) -> None:
         print(text)
 
 
+def render_project_text(p: Project) -> str:
+    lines = [
+        f"# {p.name} ({p.id})",
+        p.description or "(no description)",
+        "",
+        f"Status: {p.status}",
+        f"Focus: {p.current_focus or '(none)'}",
+        "",
+        f"Goals ({len(p.goals)}):",
+    ]
+    for g in p.goals:
+        marker = "x" if g.status == "completed" else " "
+        active = " *" if p.active_goal_id == g.id else ""
+        lines.append(f"  [{marker}] {g.id} {g.title}{active}")
+    if not p.goals:
+        lines.append("  (none)")
+    lines.append("")
+    lines.append(f"Decisions ({len(p.decisions)}):")
+    for d in p.decisions:
+        lines.append(f"  - {d.id} {d.title}")
+        lines.append(f"      rationale: {d.rationale}")
+    if not p.decisions:
+        lines.append("  (none)")
+    lines.append("")
+    lines.append(f"Open questions ({len(p.open_questions)}):")
+    for q in p.open_questions:
+        lines.append(f"  ? {q.id} {q.question}")
+    if not p.open_questions:
+        lines.append("  (none)")
+    return "\n".join(lines)
+
+
+def cmd_project_show(args: argparse.Namespace, store: YamlContextStore) -> int:
+    project_id = resolve_project_id(args.project, store)
+    project = store.get_project(project_id)
+    if project is None:
+        print(f"error: project '{project_id}' not found", file=sys.stderr)
+        return 1
+    _emit(args, project.model_dump(mode="json"), render_project_text(project))
+    return 0
+
+
 def cmd_project_init(args: argparse.Namespace, store: YamlContextStore) -> int:
     project = store.create_project(args.name, args.description)
     _emit(
@@ -76,6 +119,9 @@ def build_parser() -> argparse.ArgumentParser:
     init_p.add_argument("name", help="Human-readable project name (slugified for the id).")
     init_p.add_argument("--description", default="", help="Short description.")
     init_p.set_defaults(handler=cmd_project_init)
+
+    show_p = project_sub.add_parser("show", help="Print project state.")
+    show_p.set_defaults(handler=cmd_project_show)
 
     return parser
 
