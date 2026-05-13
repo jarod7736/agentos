@@ -10,10 +10,32 @@ Built bottom-up, one layer at a time. Each layer exposes a stable interface befo
 
 | Layer | What it owns | Status |
 | --- | --- | --- |
-| **1. Context/State** | Persistent project state — current status, decision history, active focus, open questions | Implemented (library API). CLI in progress. |
+| **1. Context/State** | Persistent project state — current status, decision history, active focus, open questions | Implemented. CLI v1 ships `agentos {project,goal,decision,focus,question}` verbs. |
 | **2. Integration** | Bidirectional sync with external systems (2nd Brain first) | Planned |
 
 Deployment is local-first with user-managed git sync. Population is agent-assisted via an `agentos` CLI; agents write at conversation boundaries. See [docs/superpowers/specs/2026-05-12-layer1-deployment-and-population-design.md](docs/superpowers/specs/2026-05-12-layer1-deployment-and-population-design.md) for the full design.
+
+## Usage
+
+The `agentos` CLI is the primary write surface — agents shell out to it at conversation boundaries; humans use it the same way.
+
+````bash
+# Bootstrap
+agentos project init "AgentOS" --description "Agent operating system"
+
+# Capture state as it changes
+agentos goal add "Ship the v1 CLI"
+agentos focus set "Wiring up subcommands"
+agentos decision add "Use argparse" --rationale "Stdlib, no new deps" --alternative click --alternative typer
+agentos question add "Deployment model?" --option local --option cloud
+agentos question resolve <question-id> "Local + git sync"
+
+# Re-enter
+agentos project show
+agentos --json project show     # machine-readable
+````
+
+State lives at `~/.agentos/` by default — override with `AGENTOS_HOME` or `--home`. Pick a project with `AGENTOS_PROJECT` or `--project` when more than one exists; otherwise the single existing project is used by default.
 
 ## Layout
 

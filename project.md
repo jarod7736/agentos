@@ -35,5 +35,5 @@ Bottom-up build order. Each layer must be stable before the next is added.
 - AgentOS does not duplicate knowledge that can be read from 2nd Brain.
 
 ## Open Questions
-- Deployment model (local, cloud, hybrid)?
-- How does context get populated? (manually, agent-assisted, inferred from git/tickets?)
+
+_None — both prior open questions (deployment model, population path) were closed by [`docs/superpowers/specs/2026-05-12-layer1-deployment-and-population-design.md`](docs/superpowers/specs/2026-05-12-layer1-deployment-and-population-design.md). Layer 1 v1 CLI is the active deliverable._
