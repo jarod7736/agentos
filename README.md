@@ -35,7 +35,16 @@ agentos project show
 agentos --json project show     # machine-readable
 ````
 
-State lives at `~/.agentos/` by default — override with `AGENTOS_HOME` or `--home`. Pick a project with `AGENTOS_PROJECT` or `--project` when more than one exists; otherwise the single existing project is used by default.
+State lives at `~/.agentos/` by default — override with `AGENTOS_HOME` or `--home`.
+
+**Picking a project** (in priority order):
+
+1. `--project <slug>` flag
+2. `AGENTOS_PROJECT` env var
+3. A `.agentos-project` file (single line: the slug) found by walking up from the current directory — drop one in each repo and `agentos` knows where it is
+4. The single existing project, when only one exists
+
+Otherwise `agentos` errors with the list of candidates.
 
 ## Layout
 
