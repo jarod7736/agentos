@@ -27,12 +27,33 @@ class NotFoundError(Exception):
     """Raised when a referenced resource (goal, question) does not exist."""
 
 
-def resolve_project_id(flag: str | None, store: YamlContextStore) -> str:
+PROJECT_MARKER = ".agentos-project"
+
+
+def _find_marker(cwd: Path) -> str | None:
+    start = cwd.resolve()
+    for d in (start, *start.parents):
+        candidate = d / PROJECT_MARKER
+        if candidate.is_file():
+            slug = candidate.read_text().strip()
+            return slug or None
+    return None
+
+
+def resolve_project_id(
+    flag: str | None,
+    store: YamlContextStore,
+    cwd: Path | None = None,
+) -> str:
     if flag:
         return flag
     env = os.environ.get("AGENTOS_PROJECT")
     if env:
         return env
+    if cwd is not None:
+        marker = _find_marker(cwd)
+        if marker:
+            return marker
     projects = store.list_projects()
     if len(projects) == 1:
         return projects[0].id
@@ -43,7 +64,8 @@ def resolve_project_id(flag: str | None, store: YamlContextStore) -> str:
     slugs = ", ".join(p.id for p in projects)
     raise ProjectResolutionError(
         f"Project is ambiguous (existing: {slugs}). "
-        "Pass --project <slug> or set AGENTOS_PROJECT."
+        f"Pass --project <slug>, set AGENTOS_PROJECT, "
+        f"or add a {PROJECT_MARKER} file to the current directory."
     )
 
 
@@ -87,7 +109,7 @@ def render_project_text(p: Project) -> str:
 
 
 def cmd_project_show(args: argparse.Namespace, store: YamlContextStore) -> int:
-    project_id = resolve_project_id(args.project, store)
+    project_id = resolve_project_id(args.project, store, cwd=args.cwd)
     project = store.get_project(project_id)
     if project is None:
         print(f"error: project '{project_id}' not found", file=sys.stderr)
@@ -107,14 +129,14 @@ def cmd_project_init(args: argparse.Namespace, store: YamlContextStore) -> int:
 
 
 def cmd_goal_add(args: argparse.Namespace, store: YamlContextStore) -> int:
-    project_id = resolve_project_id(args.project, store)
+    project_id = resolve_project_id(args.project, store, cwd=args.cwd)
     goal = store.add_goal(project_id, args.title, args.description)
     _emit(args, goal.model_dump(mode="json"), f"Added goal {goal.id}: {goal.title}")
     return 0
 
 
 def cmd_goal_complete(args: argparse.Namespace, store: YamlContextStore) -> int:
-    project_id = resolve_project_id(args.project, store)
+    project_id = resolve_project_id(args.project, store, cwd=args.cwd)
     project = store.get_project(project_id)
     if project is None:
         raise NotFoundError(f"project '{project_id}' not found")
@@ -128,7 +150,7 @@ def cmd_goal_complete(args: argparse.Namespace, store: YamlContextStore) -> int:
 
 
 def cmd_decision_add(args: argparse.Namespace, store: YamlContextStore) -> int:
-    project_id = resolve_project_id(args.project, store)
+    project_id = resolve_project_id(args.project, store, cwd=args.cwd)
     decision = store.record_decision(
         project_id,
         args.title,
@@ -144,7 +166,7 @@ def cmd_decision_add(args: argparse.Namespace, store: YamlContextStore) -> int:
 
 
 def cmd_focus_set(args: argparse.Namespace, store: YamlContextStore) -> int:
-    project_id = resolve_project_id(args.project, store)
+    project_id = resolve_project_id(args.project, store, cwd=args.cwd)
     project = store.set_focus(project_id, args.text)
     _emit(
         args,
@@ -155,7 +177,7 @@ def cmd_focus_set(args: argparse.Namespace, store: YamlContextStore) -> int:
 
 
 def cmd_question_add(args: argparse.Namespace, store: YamlContextStore) -> int:
-    project_id = resolve_project_id(args.project, store)
+    project_id = resolve_project_id(args.project, store, cwd=args.cwd)
     question = store.add_open_question(project_id, args.text, args.option or [])
     _emit(
         args,
@@ -166,7 +188,7 @@ def cmd_question_add(args: argparse.Namespace, store: YamlContextStore) -> int:
 
 
 def cmd_question_resolve(args: argparse.Namespace, store: YamlContextStore) -> int:
-    project_id = resolve_project_id(args.project, store)
+    project_id = resolve_project_id(args.project, store, cwd=args.cwd)
     project = store.get_project(project_id)
     if project is None:
         raise NotFoundError(f"project '{project_id}' not found")
@@ -274,6 +296,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
     home = resolve_home(args.home)
     store = YamlContextStore(base_dir=home)
+    args.cwd = Path.cwd()
     try:
         return args.handler(args, store)
     except ProjectResolutionError as e:
