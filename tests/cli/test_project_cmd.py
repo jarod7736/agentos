@@ -51,6 +51,8 @@ def test_project_show_with_explicit_slug(tmp_path, monkeypatch, capsys):
 
 def test_project_show_no_projects_errors_exit_1(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("AGENTOS_HOME", str(tmp_path))
+    monkeypatch.delenv("AGENTOS_PROJECT", raising=False)
+    monkeypatch.chdir(tmp_path)
     code = main(["project", "show"])
     assert code == 1
     err = capsys.readouterr().err
