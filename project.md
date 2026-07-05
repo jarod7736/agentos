@@ -6,10 +6,11 @@ AgentOS is an agent operating system built layer by layer. It solves the problem
 ## Layered Architecture
 Bottom-up build order. Each layer must be stable before the next is added.
 
-1. **Context/State Layer** _(Layer 1 — current focus)_
+1. **Context/State Layer** _(Layer 1 — implemented)_
    - Responsibility: owns persistent project state — current status, decision history, active focus, open questions
-   - Interface: read/write API consumed by both humans and agents
+   - Interface: read/write API consumed by both humans and agents; the `agentos` CLI is the primary write surface (agents shell out at conversation boundaries, humans use it the same way)
    - Goal: survive session boundaries; make project context instantly retrievable
+   - Shipped: v1 CLI with `project {init,show}`, `goal {add,complete}`, `decision add`, `focus set`, `question {add,resolve}`; `--json` for machine-readable output
 
 2. **Integration Layer** _(Layer 2 — planned)_
    - Responsibility: bidirectional sync with external systems
@@ -24,9 +25,10 @@ Bottom-up build order. Each layer must be stable before the next is added.
 ## Technology Decisions
 - **Runtime**: Python 3.12+
 - **Build/packaging**: `uv` + `pyproject.toml`
-- **Storage (Layer 1)**: Structured YAML files (`~/.agentos/projects/`)
+- **Storage (Layer 1)**: Structured YAML files (`~/.agentos/projects/`), one file per project, written atomically (temp file then replace); `AGENTOS_HOME`/`--home` override the base directory
 - **Project boundary**: Named entity (user-defined slug) with Goals nested within
-- **Decision log**: append-only — decisions are never overwritten or deleted
+- **Project resolution**: `--project` flag → `AGENTOS_PROJECT` env → `.agentos-project` marker walked up from cwd → the sole project if only one exists → else error
+- **Decision log**: append-only — decisions are never overwritten or deleted (`question resolve` records the answer as a new decision, then drops the question)
 
 ## Constraints & Non-Goals
 - Layers are built sequentially; no layer depends on one above it.
@@ -36,4 +38,4 @@ Bottom-up build order. Each layer must be stable before the next is added.
 
 ## Open Questions
 
-_None — both prior open questions (deployment model, population path) were closed by [`docs/superpowers/specs/2026-05-12-layer1-deployment-and-population-design.md`](docs/superpowers/specs/2026-05-12-layer1-deployment-and-population-design.md). Layer 1 v1 CLI is the active deliverable._
+_None for Layer 1 — both prior open questions (deployment model, population path) were closed by [`docs/superpowers/specs/2026-05-12-layer1-deployment-and-population-design.md`](docs/superpowers/specs/2026-05-12-layer1-deployment-and-population-design.md), and the v1 CLI has shipped and merged. Next up is Layer 2 (Integration) — design its adapter interface before construction begins._
